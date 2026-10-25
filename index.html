@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body style="margin:0">
+<title>Wrentham Pipeline</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: green brand band with money strip → "due today" list → horizontally scrolling pipeline board; editor slides in as a sheet */
+:root {
+  --bg: #F2F5F1; --surface: #FFFFFF; --ink: #15201A; --muted: #5A6A60; --line: #D9E2DB;
+  --accent: #1E4D36; --accent-ink: #FFFFFF; --accent-soft: #E1EDE4;
+  --band: #173D2B; --band-ink: #EAF2EC; --band-muted: #A9C2B2;
+  --warn: #9A6212; --warn-soft: #FBF0DC; --bad: #A7352B; --bad-soft: #FBE6E3;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0D1511; --surface: #15201A; --ink: #E5EDE7; --muted: #92A399; --line: #26342C;
+  --accent: #74C493; --accent-ink: #0D1511; --accent-soft: #1B3225;
+  --band: #10241A; --band-ink: #E5EDE7; --band-muted: #8FAE9A;
+  --warn: #E3AE55; --warn-soft: #33270F; --bad: #EE8277; --bad-soft: #3A1A17;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0D1511; --surface: #15201A; --ink: #E5EDE7; --muted: #92A399; --line: #26342C;
+  --accent: #74C493; --accent-ink: #0D1511; --accent-soft: #1B3225;
+  --band: #10241A; --band-ink: #E5EDE7; --band-muted: #8FAE9A;
+  --warn: #E3AE55; --warn-soft: #33270F; --bad: #EE8277; --bad-soft: #3A1A17;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 1500px; margin: 0 auto; }
+
+/* Band */
+.band { background: var(--band); color: var(--band-ink); }
+.band .wrap { padding-block: 22px 20px; display: grid; gap: 18px; }
+.top { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.brand small { display: block; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--band-muted); }
+.brand h1 { margin: 2px 0 0; font-family: var(--f-display); font-weight: 700; font-size: clamp(26px, 4vw, 34px); letter-spacing: -.01em; text-wrap: balance; }
+.btn { border: 0; border-radius: 8px; padding: 10px 16px; font-weight: 600; }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.band .btn-primary { background: var(--band-ink); color: var(--band); }
+.btn-ghost { background: transparent; border: 1px solid var(--line); color: var(--ink); }
+.btn-danger { background: transparent; border: 1px solid var(--bad); color: var(--bad); }
+.btn-danger.armed { background: var(--bad); color: var(--surface); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: rgba(255,255,255,.12); border-radius: 10px; overflow: hidden; }
+.stat { background: var(--band); padding: 12px 14px; }
+.stat b { display: block; font-family: var(--f-mono); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--band-muted); letter-spacing: .04em; }
+@media (max-width: 640px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Sections */
+main .wrap { padding-block: 22px 40px; display: grid; gap: 26px; }
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.sec-head h2 { margin: 0; font-family: var(--f-display); font-size: 19px; font-weight: 700; }
+.sec-head p { margin: 0; color: var(--muted); font-size: 13px; }
+.banner { border: 1px solid var(--line); background: var(--warn-soft); color: var(--ink); border-radius: 8px; padding: 10px 14px; font-size: 14px; }
+
+.due { display: grid; gap: 6px; }
+.due-row { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; text-align: left; width: 100%; }
+.due-row:hover { border-color: var(--accent); }
+.due-row .nm { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.due-row .stg { color: var(--muted); font-size: 13px; }
+.empty-line { color: var(--muted); font-size: 14px; padding: 10px 0; }
+
+/* Board */
+.board-scroll { overflow-x: auto; padding-bottom: 8px; margin-inline: -4px; }
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(232px, 1fr); gap: 12px; padding-inline: 4px; min-width: min-content; }
+.col { background: color-mix(in srgb, var(--surface) 55%, var(--bg)); border: 1px solid var(--line); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-height: 160px; }
+.col.over { border-color: var(--accent); background: var(--accent-soft); }
+.col-head { display: flex; justify-content: space-between; align-items: baseline; padding: 2px 4px 4px; }
+.col-head h3 { margin: 0; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 600; }
+.col-head span { font-family: var(--f-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.col-sum { font-family: var(--f-mono); font-size: 12px; color: var(--accent); padding: 0 4px; margin-top: -4px; }
+.col-empty { color: var(--muted); font-size: 13px; padding: 4px; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; cursor: grab; }
+.card:hover { border-color: var(--accent); }
+.card.dragging { opacity: .45; }
+.card .nm { font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.card .meta { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.card .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 500; white-space: nowrap; }
+.chip.overdue { background: var(--bad-soft); color: var(--bad); }
+.chip.today { background: var(--warn-soft); color: var(--warn); }
+.chip.later { background: transparent; border: 1px solid var(--line); color: var(--muted); }
+.chip.ex { background: transparent; border: 1px dashed var(--muted); color: var(--muted); }
+.chip.money { font-family: var(--f-mono); }
+.next { border: 0; background: none; color: var(--accent); font-size: 13px; font-weight: 600; padding: 2px 0; }
+
+/* Editor sheet */
+.scrim { position: fixed; inset: 0; background: rgba(5,12,8,.45); z-index: 20; }
+.sheet { position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100%); background: var(--surface); z-index: 21; display: flex; flex-direction: column; border-left: 1px solid var(--line);
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.sheet-head h2 { margin: 0; font-family: var(--f-display); font-size: 20px; }
+.x { border: 0; background: none; font-size: 22px; line-height: 1; padding: 4px 8px; color: var(--muted); }
+.sheet form { overflow-y: auto; padding: 18px 20px; display: grid; gap: 14px; flex: 1; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+@media (max-width: 420px) { .grid2 { grid-template-columns: 1fr; } }
+label { display: grid; gap: 4px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; min-width: 0; }
+input, select, textarea { width: 100%; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 15px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 9px 10px; color: var(--ink); }
+textarea { min-height: 96px; resize: vertical; }
+.group-title { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-top: 4px; border-top: 1px solid var(--line); padding-top: 14px; }
+.sheet-foot { display: flex; gap: 10px; justify-content: space-between; padding: 14px 20px; border-top: 1px solid var(--line); }
+.sheet-foot .right { display: flex; gap: 10px; }
+.err { color: var(--bad); font-size: 13px; }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 8px; font-size: 14px; z-index: 30; }
+@media (prefers-reduced-motion: no-preference) { .sheet { animation: slide .18s ease-out; } @keyframes slide { from { transform: translateX(24px); opacity: .6; } } }
+</style>
+
+<header class="band">
+  <div class="wrap">
+    <div class="top">
+      <div class="brand"><small>Wrentham Media</small><h1>Client Pipeline</h1></div>
+      <button class="btn btn-primary" id="addBtn" type="button">+ Add business</button>
+    </div>
+    <div class="stats" id="stats"></div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="banner" id="banner" hidden></div>
+    <section>
+      <div class="sec-head"><h2>Follow up today</h2><p id="dueNote"></p></div>
+      <div class="due" id="due"><div class="empty-line">Loading your pipeline…</div></div>
+    </section>
+    <section>
+      <div class="sec-head"><h2>Pipeline</h2><p>Drag cards between stages, or tap “Next stage”.</p></div>
+      <div class="board-scroll"><div class="board" id="board"></div></div>
+    </section>
+  </div>
+</main>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="sheet" id="sheet" hidden aria-labelledby="sheetTitle" role="dialog">
+  <div class="sheet-head"><h2 id="sheetTitle">New business</h2><button class="x" id="closeBtn" type="button" aria-label="Close">×</button></div>
+  <form id="form" novalidate>
+    <label>Business name<input id="f-name" required placeholder="e.g. Oak Lawn Barber Co."></label>
+    <div class="grid2">
+      <label>Type<input id="f-type" placeholder="Barber, plumber, café…"></label>
+      <label>Town<input id="f-town" placeholder="Tinley Park"></label>
+    </div>
+    <div class="grid2">
+      <label>Stage<select id="f-stage"></select></label>
+      <label>Next follow-up<input id="f-followUp" type="date"></label>
+    </div>
+    <div class="group-title">Contact</div>
+    <label>Owner / contact<input id="f-owner"></label>
+    <div class="grid2">
+      <label>Phone<input id="f-phone" type="tel"></label>
+      <label>Email<input id="f-email" type="email"></label>
+    </div>
+    <div class="group-title">The deal</div>
+    <div class="grid2">
+      <label>Package<input id="f-pkg" placeholder="Starter, 5-page…"></label>
+      <label>Monthly retainer ($)<input id="f-retainer" type="number" min="0" step="1" inputmode="numeric"></label>
+    </div>
+    <label>Concept site link<input id="f-conceptUrl" type="url" placeholder="https://"></label>
+    <label>Live site link<input id="f-liveUrl" type="url" placeholder="https://"></label>
+    <label>Notes<textarea id="f-notes" placeholder="Owner works mornings, call after 2"></textarea></label>
+    <div class="err" id="formErr" hidden></div>
+  </form>
+  <div class="sheet-foot">
+    <button class="btn btn-danger" id="delBtn" type="button">Delete</button>
+    <div class="right">
+      <button class="btn btn-ghost" id="cancelBtn" type="button">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn" type="button">Save</button>
+    </div>
+  </div>
+</aside>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const STAGES = [
+  { id: "found", label: "Found" },
+  { id: "contacted", label: "Contacted" },
+  { id: "meeting", label: "Meeting set" },
+  { id: "building", label: "Building concept" },
+  { id: "pitched", label: "Pitched" },
+  { id: "live", label: "Live" },
+  { id: "retainer", label: "On retainer" },
+];
+const ACTIVE = ["contacted", "meeting", "building", "pitched"];
+const FIELDS = ["name","type","town","stage","followUp","owner","phone","email","pkg","retainer","conceptUrl","liveUrl","notes"];
+const stageLabel = id => (STAGES.find(s => s.id === id) || STAGES[0]).label;
+const $ = id => document.getElementById(id);
+
+let clients = [];
+let col = null;          // db collection, or null when saving is unavailable
+let loaded = false;
+let editingId = null;
+
+function el(tag, props = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "class") n.className = v;
+    else if (k === "text") n.textContent = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
+  }
+  kids.flat().forEach(c => c != null && n.append(c));
+  return n;
+}
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function fuState(c) {
+  if (!c.followUp) return null;
+  const t = todayStr();
+  return c.followUp < t ? "overdue" : c.followUp === t ? "today" : "later";
+}
+function fmtDate(s) {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+function fuLabel(c) {
+  const st = fuState(c);
+  if (st === "overdue") return "Overdue · " + fmtDate(c.followUp);
+  if (st === "today") return "Today";
+  return "Follow up " + fmtDate(c.followUp);
+}
+const money = n => "$" + Math.round(n).toLocaleString();
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => t.hidden = true, 2200); }
+
+function renderStats() {
+  const onRet = clients.filter(c => c.stage === "retainer");
+  const mrr = onRet.reduce((s, c) => s + (Number(c.retainer) || 0), 0);
+  const active = clients.filter(c => ACTIVE.includes(c.stage)).length;
+  const due = clients.filter(c => ["overdue", "today"].includes(fuState(c))).length;
+  const items = [[money(mrr), "Monthly recurring"], [onRet.length, "On retainer"], [active, "Deals in play"], [due, "Follow-ups due"]];
+  $("stats").replaceChildren(...items.map(([v, l]) => el("div", { class: "stat" }, el("b", { text: String(v) }), el("span", { text: l }))));
+}
+
+function renderDue() {
+  const box = $("due");
+  if (!loaded) return;
+  const list = clients.filter(c => ["overdue", "today"].includes(fuState(c)) && c.stage !== "retainer")
+    .sort((a, b) => a.followUp.localeCompare(b.followUp));
+  $("dueNote").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  if (!list.length) {
+    box.replaceChildren(el("div", { class: "empty-line", text: clients.length ? "No follow-ups due today." : "Add your first business and give it a follow-up date. It will show up here when it's due." }));
+    return;
+  }
+  box.replaceChildren(...list.map(c => el("button", { class: "due-row", type: "button", onclick: () => openEditor(c.id) },
+    el("span", { class: "chip " + fuState(c), text: fuLabel(c) }),
+    el("span", { class: "nm", text: c.name || "Untitled" }),
+    el("span", { class: "stg", text: stageLabel(c.stage) }))));
+}
+
+function renderBoard() {
+  const board = $("board");
+  board.replaceChildren(...STAGES.map((s, i) => {
+    const items = clients.filter(c => (c.stage || "found") === s.id)
+      .sort((a, b) => (a.followUp || "9999").localeCompare(b.followUp || "9999") || (a.name || "").localeCompare(b.name || ""));
+    const sum = items.reduce((t, c) => t + (Number(c.retainer) || 0), 0);
+    const colEl = el("div", { class: "col", "data-stage": s.id },
+      el("div", { class: "col-head" }, el("h3", { text: s.label }), el("span", { text: String(items.length) })),
+      (s.id === "live" || s.id === "retainer") && sum ? el("div", { class: "col-sum", text: money(sum) + "/mo" }) : null,
+      items.length ? items.map(c => card(c, i)) : el("div", { class: "col-empty", text: i === 0 ? "Businesses you've spotted go here." : "Nothing here yet." })
+    );
+    colEl.addEventListener("dragover", e => { e.preventDefault(); colEl.classList.add("over"); });
+    colEl.addEventListener("dragleave", e => { if (!colEl.contains(e.relatedTarget)) colEl.classList.remove("over"); });
+    colEl.addEventListener("drop", e => { e.preventDefault(); colEl.classList.remove("over"); const id = e.dataTransfer.getData("text/plain"); if (id) moveTo(id, s.id); });
+    return colEl;
+  }));
+}
+
+function card(c, stageIdx) {
+  const st = fuState(c);
+  const meta = [c.type, c.town].filter(Boolean).join(" · ");
+  const next = STAGES[stageIdx + 1];
+  const n = el("div", { class: "card", draggable: "true", tabindex: "0", role: "button", "aria-label": "Open " + (c.name || "business") },
+    el("div", { class: "nm", text: c.name || "Untitled" }),
+    meta ? el("div", { class: "meta", text: meta }) : null,
+    el("div", { class: "chips" },
+      c.example ? el("span", { class: "chip ex", text: "Example" }) : null,
+      st ? el("span", { class: "chip " + st, text: fuLabel(c) }) : null,
+      Number(c.retainer) ? el("span", { class: "chip money", text: money(c.retainer) + "/mo" }) : null),
+    next ? el("div", { class: "row" }, el("span"), el("button", { class: "next", type: "button", text: "Next stage →",
+      onclick: e => { e.stopPropagation(); moveTo(c.id, next.id); } })) : null
+  );
+  n.addEventListener("click", () => openEditor(c.id));
+  n.addEventListener("keydown", e => { if (e.key === "Enter") openEditor(c.id); });
+  n.addEventListener("dragstart", e => { e.dataTransfer.setData("text/plain", c.id); n.classList.add("dragging"); });
+  n.addEventListener("dragend", () => n.classList.remove("dragging"));
+  return n;
+}
+
+function render() { renderStats(); renderDue(); renderBoard(); }
+
+/* ---------- saving ---------- */
+function newId() { return col ? col.doc().id : "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+async function writeClient(id, data) {
+  const i = clients.findIndex(c => c.id === id);
+  if (i >= 0) clients[i] = { id, ...data }; else clients.push({ id, ...data });
+  render();
+  if (!col) return true;
+  try { await col.doc(id).set(data); return true; }
+  catch (e) {
+    showBanner(e && e.code === "quota_exceeded" ? "Your tracker is full. Delete a few old businesses to add more." : "That change didn't save. Check your connection and try again.");
+    return false;
+  }
+}
+async function removeClient(id) {
+  clients = clients.filter(c => c.id !== id);
+  render();
+  if (col) { try { await col.doc(id).delete(); } catch (e) { showBanner("Couldn't delete that business. Try again in a moment."); } }
+}
+function bodyOf(c) { const { id, ...rest } = c; return rest; }
+
+async function moveTo(id, stage) {
+  const c = clients.find(x => x.id === id);
+  if (!c || c.stage === stage) return;
+  const data = { ...bodyOf(c), stage, updatedAt: new Date().toISOString() };
+  if (await writeClient(id, data)) toast("Moved to " + stageLabel(stage));
+}
+
+function showBanner(msg) { const b = $("banner"); b.textContent = msg; b.hidden = false; }
+
+/* ---------- editor ---------- */
+$("f-stage").append(...STAGES.map(s => el("option", { value: s.id, text: s.label })));
+
+function openEditor(id) {
+  editingId = id || null;
+  const c = id ? clients.find(x => x.id === id) : { stage: "found" };
+  if (!c) return;
+  FIELDS.forEach(f => { $("f-" + f).value = c[f] != null ? c[f] : ""; });
+  $("sheetTitle").textContent = id ? (c.name || "Business") : "New business";
+  $("delBtn").hidden = !id;
+  $("delBtn").classList.remove("armed"); $("delBtn").textContent = "Delete";
+  $("formErr").hidden = true;
+  $("scrim").hidden = false; $("sheet").hidden = false;
+  setTimeout(() => $("f-name").focus(), 30);
+}
+function closeEditor() { $("scrim").hidden = true; $("sheet").hidden = true; editingId = null; }
+
+async function save() {
+  const name = $("f-name").value.trim();
+  if (!name) { const e = $("formErr"); e.textContent = "Add the business name to save."; e.hidden = false; $("f-name").focus(); return; }
+  const prev = editingId ? clients.find(c => c.id === editingId) : null;
+  const data = prev ? bodyOf(prev) : { createdAt: new Date().toISOString() };
+  FIELDS.forEach(f => { data[f] = $("f-" + f).value.trim(); });
+  data.name = name;
+  data.retainer = data.retainer === "" ? 0 : Math.max(0, Number(data.retainer) || 0);
+  data.updatedAt = new Date().toISOString();
+  const id = editingId || newId();
+  const isNew = !editingId;
+  closeEditor();
+  if (await writeClient(id, data)) toast(isNew ? "Added " + name : "Saved");
+}
+
+$("addBtn").onclick = () => openEditor(null);
+$("closeBtn").onclick = closeEditor;
+$("cancelBtn").onclick = closeEditor;
+$("scrim").onclick = closeEditor;
+$("saveBtn").onclick = save;
+$("form").addEventListener("submit", e => { e.preventDefault(); save(); });
+$("form").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.tagName === "INPUT") { e.preventDefault(); save(); } });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("sheet").hidden) closeEditor(); });
+$("delBtn").onclick = () => {
+  const b = $("delBtn");
+  if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = "Tap again to delete"; return; }
+  const id = editingId, name = $("f-name").value;
+  closeEditor(); removeClient(id); toast("Deleted " + (name || "business"));
+};
+
+/* ---------- start ---------- */
+render();
+(async () => {
+  let db = null;
+  try { db = window.claude && window.claude.use ? await window.claude.use("db") : null; } catch (e) { db = null; }
+  if (!db) {
+    loaded = true;
+    showBanner("Saving isn't available in this view, so changes will disappear when you close the page. Open the tracker from your claude.ai link to keep your data.");
+    render();
+    return;
+  }
+  col = db.collection("clients");
+  col.onSnapshot(snap => {
+    clients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    loaded = true;
+    render();
+  }, err => {
+    loaded = true;
+    showBanner("Lost the connection to your saved data. Reload the page to reconnect.");
+    render();
+  });
+})();
+</script>
+
+</body>
+</html>
